@@ -28,7 +28,10 @@ import com.google.gson.Gson;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.Proxy;
 import java.net.URL;
+import hudson.ProxyConfiguration;
+import jenkins.model.Jenkins;
 
 /**
  * Developers: Weiyin He and John Snyder
@@ -73,7 +76,7 @@ public class AppetizeApiService {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(PRESIGN_URL);
-            connection = (HttpURLConnection)url.openConnection();
+            connection = getConnection(url);
             connection.setRequestMethod("GET");
             connection.connect();
             int status = connection.getResponseCode();
@@ -100,7 +103,7 @@ public class AppetizeApiService {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(urlString);
-            connection = (HttpURLConnection) url.openConnection();
+            connection = getConnection(url);
             connection.setDoOutput(true);
             connection.setRequestMethod("PUT");
 
@@ -125,10 +128,11 @@ public class AppetizeApiService {
     }
 
     public AppetizeUpdateResult updateApp(AppetizeUpdateParams params) {
+
         HttpURLConnection connection = null;
         try {
             URL url = new URL(UPDATE_URL);
-            connection = (HttpURLConnection)url.openConnection();
+            connection = getConnection(url);
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setDoOutput(true);
@@ -189,5 +193,31 @@ public class AppetizeApiService {
         while ((len = in.read(buf)) > 0) {
             out.write(buf, 0, len);
         }
+    }
+
+    /**
+     * Returns an HttpURLConnection using the Jenkins global proxy if set
+     * @param url URL to open the connection
+     * @return Instanciated connection
+     * @throws IOException
+     */
+    private HttpURLConnection getConnection(URL url) throws IOException {
+
+        HttpURLConnection connection;
+        ProxyConfiguration proxyConfig = Jenkins.getInstance().proxy;
+        if (proxyConfig != null) {
+            Proxy proxy = proxyConfig.createProxy(url.getHost());
+            if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
+                connection = (HttpURLConnection)url.openConnection(proxy);
+            }
+            else {
+                connection = (HttpURLConnection)url.openConnection();
+            }
+        }
+        else {
+            connection = (HttpURLConnection)url.openConnection();
+        }
+
+        return connection;
     }
 }
